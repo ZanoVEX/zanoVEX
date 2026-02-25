@@ -16,7 +16,7 @@
     <h2 style="text-align:center;">Admin Login</h2>
 
     <div style="margin-top: 20px;">
-     <form method="post" action="/api/v1/auth/login">
+     <form method="post" onsubmit="login(event)">
         <input type="text" name="username" placeholder="Username" required>
         <br><br>
         <input type="password" name="password" placeholder="Password" required>
