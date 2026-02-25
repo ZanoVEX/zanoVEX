@@ -10,6 +10,10 @@ from app.api.v1.emails import router as email_router
 from app.api.v1.domains import router as domain_router
 from app.db.init_db import init_db
 from app.api.v1 import emails, domains, auth
+from app.db.session import SessionLocal
+from app.models.admin import Admin
+from app.services.auth import hash_password
+
 app = FastAPI(
     title="Zanovex Email Provisioning API",
     version="0.2.0",
@@ -43,8 +47,20 @@ app.add_middleware(
 # STARTUP
 # -------------------------------------------------
 @app.on_event("startup")
-def startup():
-    init_db()
+def create_default_admin():
+    db = SessionLocal()
+
+    admin = db.query(Admin).filter(Admin.username == "admin").first()
+
+    if not admin:
+        admin = Admin(
+            username="admin",
+            password_hash=hash_password("admin123")
+        )
+        db.add(admin)
+        db.commit()
+
+    db.close()
 
 # -------------------------------------------------
 # DASHBOARD FILE PATH
