@@ -1,32 +1,38 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Form
+from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from jose import jwt, JWTError
 
 from app.db.session import get_db
-from app.models.admin import Admin
+from app.models.admin import Admin  # adjust if your model name differs
 from app.services.auth import verify_password, create_access_token
+from jose import jwt, JWTError
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials
+from app.services.auth import require_admin
 
-# ======================
-# CONFIG
-# ======================
-SECRET_KEY = "CHANGE_ME"  # on Render this comes from env
+SECRET_KEY = "CHANGE_ME"
 ALGORITHM = "HS256"
 
 router = APIRouter(tags=["Auth"])
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
+
 
 # =====================================================
-# LOGIN (ADMIN) — FIXED FOR HTML FORMS
+# LOGIN (ADMIN)
 # =====================================================
 @router.post("/auth/login")
 def login(
-    username: str = Form(...),
-    password: str = Form(...),
-    db: Session = Depends(get_db),
+    username: str,
+    password: str,
+    db: Session = Depends(get_db)
 ):
     admin = db.query(Admin).filter(Admin.username == username).first()
 
-    if not admin or not verify_password(password, admin.password_hash):
+    if not admin:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not verify_password(password, admin.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token(
@@ -35,13 +41,21 @@ def login(
 
     return {
         "access_token": token,
-        "token_type": "bearer",
+        "token_type": "bearer"
     }
 
 
 # =====================================================
-# AUTH GUARD (ADMIN ONLY)
+# WHO AM I (ADMIN)
 # =====================================================
+@router.get("/auth/me")
+def me(
+    payload: dict = Depends(require_admin),
+):
+    return {
+        "username": payload.get("sub"),
+        "role": payload.get("role"),
+    }
 def require_admin(request: Request):
     auth = request.headers.get("Authorization")
 
@@ -58,15 +72,7 @@ def require_admin(request: Request):
     if payload.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
+    # attach admin info to request
+    request.state.admin = payload
+
     return payload
-
-
-# =====================================================
-# WHO AM I (ADMIN)
-# =====================================================
-@router.get("/auth/me")
-def me(payload: dict = Depends(require_admin)):
-    return {
-        "username": payload.get("sub"),
-        "role": payload.get("role"),
-    }
