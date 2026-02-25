@@ -10,7 +10,9 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials
 from app.services.auth import require_admin
 
-SECRET_KEY = "CHANGE_ME"
+import os
+
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
 router = APIRouter(tags=["Auth"])
