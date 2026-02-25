@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Zanovex Admin Login</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <div class="container" style="max-width: 400px; margin-top: 100px;">
+
+    <div class="logo">
+  <img src="/static/images/zanovex_logo.png" alt="Zanovex Logo">
+</div>
+
+    <h2 style="text-align:center;">Admin Login</h2>
+
+    <div style="margin-top: 20px;">
+      <input id="username" placeholder="Username" style="width:100%; margin-bottom:10px;">
+      <input id="password" type="password" placeholder="Password" style="width:100%; margin-bottom:10px;">
+      <button class="primary" style="width:100%;" onclick="login()">Login</button>
+    </div>
+
+    <p id="error" style="color:#d93025; text-align:center; margin-top:10px;"></p>
+
+  </div>
+
+  <script src="/static/js/auth.js"></script>
+</body>
+</html>

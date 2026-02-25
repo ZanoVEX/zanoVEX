@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Zanovex Dashboard</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <div class="container">
+
+    <div class="logo">
+  <img src="/static/images/zanovex_logo.png" alt="Zanovex Logo">
+</div>
+
+    <button class="logout" onclick="logout()">Logout</button>
+
+    <h2>Admin Dashboard</h2>
+
+    <h3>Create Email</h3>
+    <input id="domain" placeholder="example.com">
+    <input id="localPart" placeholder="info">
+    <button class="primary" onclick="createEmail()">Create</button>
+
+    <p id="createMsg"></p>
+
+    <h3>Domains</h3>
+    <ul id="domains"></ul>
+
+    <h3>Emails</h3>
+    <ul id="emails"></ul>
+
+  </div>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
