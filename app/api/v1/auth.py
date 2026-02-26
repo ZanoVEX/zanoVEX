@@ -1,70 +1,77 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Form
 from sqlalchemy.orm import Session
+from jose import jwt, JWTError
+import os
+from datetime import timedelta
 
 from app.db.session import get_db
-from app.models.admin import Admin  # adjust if your model name differs
-from app.services.auth import verify_password, create_access_token
-from jose import jwt, JWTError
-from fastapi import Depends
-from fastapi.security import HTTPAuthorizationCredentials
-from app.services.auth import require_admin
+from app.models.admin import Admin
+from app.services.auth import verify_password
 
-import os
-
-SECRET_KEY = os.getenv("SECRET_KEY")
+# -------------------------------------------------
+# CONFIG
+# -------------------------------------------------
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-key")
 ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
+# -------------------------------------------------
+# ROUTER
+# -------------------------------------------------
 router = APIRouter(tags=["Auth"])
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
+# -------------------------------------------------
+# TOKEN CREATION (SINGLE SOURCE)
+# -------------------------------------------------
+def create_access_token(data: dict):
+    payload = data.copy()
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-
-# =====================================================
-# LOGIN (ADMIN)
-# =====================================================
+# -------------------------------------------------
+# LOGIN
+# -------------------------------------------------
 @router.post("/auth/login")
 def login(
-    username: str,
-    password: str,
-    db: Session = Depends(get_db)
+    response: Response,
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
 ):
     admin = db.query(Admin).filter(Admin.username == username).first()
 
-    if not admin:
+    if not admin or not verify_password(password, admin.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if not verify_password(password, admin.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = create_access_token({
+        "sub": admin.username,
+        "role": "admin"
+    })
 
-    token = create_access_token(
-        data={"sub": admin.username, "role": "admin"}
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
     )
 
-    return {
-        "access_token": token,
-        "token_type": "bearer"
-    }
+    return {"message": "Login successful"}
 
+# -------------------------------------------------
+# LOGOUT
+# -------------------------------------------------
+@router.post("/auth/logout")
+def logout(response: Response):
+    response.delete_cookie("access_token")
+    return {"message": "Logged out"}
 
-# =====================================================
-# WHO AM I (ADMIN)
-# =====================================================
-@router.get("/auth/me")
-def me(
-    payload: dict = Depends(require_admin),
-):
-    return {
-        "username": payload.get("sub"),
-        "role": payload.get("role"),
-    }
+# -------------------------------------------------
+# AUTH DEPENDENCY
+# -------------------------------------------------
 def require_admin(request: Request):
-    auth = request.headers.get("Authorization")
+    token = request.cookies.get("access_token")
 
-    if not auth or not auth.startswith("Bearer "):
+    if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
-
-    token = auth.split(" ")[1]
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -74,7 +81,14 @@ def require_admin(request: Request):
     if payload.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    # attach admin info to request
-    request.state.admin = payload
-
     return payload
+
+# -------------------------------------------------
+# WHO AM I
+# -------------------------------------------------
+@router.get("/auth/me")
+def me(payload: dict = Depends(require_admin)):
+    return {
+        "username": payload.get("sub"),
+        "role": payload.get("role"),
+    }
