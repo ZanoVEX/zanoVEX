@@ -1,18 +1,24 @@
-const token = localStorage.getItem("token");
+// -------------------------------------------------
+// LOGOUT
+// -------------------------------------------------
+async function logout() {
+  await fetch("/api/v1/auth/logout", {
+    method: "POST",
+    credentials: "include"
+  });
 
-if (!token) {
   window.location.href = "/";
 }
 
-function logout() {
-  localStorage.removeItem("token");
-  window.location.href = "/";
-}
-
+// -------------------------------------------------
+// LOAD DOMAINS
+// -------------------------------------------------
 async function loadDomains() {
   const res = await fetch("/api/v1/domains", {
-    headers: { "Authorization": `Bearer ${token}` }
+    credentials: "include"
   });
+
+  if (!res.ok) return;
 
   const domains = await res.json();
   const list = document.getElementById("domains");
@@ -25,10 +31,15 @@ async function loadDomains() {
   });
 }
 
+// -------------------------------------------------
+// LOAD EMAILS
+// -------------------------------------------------
 async function loadEmails() {
   const res = await fetch("/api/v1/emails", {
-    headers: { "Authorization": `Bearer ${token}` }
+    credentials: "include"
   });
+
+  if (!res.ok) return;
 
   const emails = await res.json();
   const list = document.getElementById("emails");
@@ -36,7 +47,6 @@ async function loadEmails() {
 
   emails.forEach(e => {
     let statusClass = "status-pending";
-
     if (e.status === "active") statusClass = "status-active";
     if (e.status === "disabled") statusClass = "status-disabled";
 
@@ -55,6 +65,9 @@ async function loadEmails() {
   });
 }
 
+// -------------------------------------------------
+// CREATE EMAIL
+// -------------------------------------------------
 async function createEmail() {
   const domain = document.getElementById("domain").value;
   const localPart = document.getElementById("localPart").value;
@@ -64,7 +77,10 @@ async function createEmail() {
 
   const res = await fetch(
     `/api/v1/emails/create?domain=${domain}&local_part=${localPart}`,
-    { method: "POST" }
+    {
+      method: "POST",
+      credentials: "include"
+    }
   );
 
   const data = await res.json();
@@ -82,10 +98,13 @@ async function createEmail() {
   loadDomains();
 }
 
+// -------------------------------------------------
+// ACTIVATE / DEACTIVATE
+// -------------------------------------------------
 async function activateEmail(email) {
   await fetch(`/api/v1/emails/activate?email=${email}`, {
     method: "POST",
-    headers: { "Authorization": `Bearer ${token}` }
+    credentials: "include"
   });
   loadEmails();
 }
@@ -93,10 +112,13 @@ async function activateEmail(email) {
 async function deactivateEmail(email) {
   await fetch(`/api/v1/emails/deactivate?email=${email}`, {
     method: "POST",
-    headers: { "Authorization": `Bearer ${token}` }
+    credentials: "include"
   });
   loadEmails();
 }
 
+// -------------------------------------------------
+// INIT
+// -------------------------------------------------
 loadDomains();
 loadEmails();
