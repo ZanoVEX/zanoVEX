@@ -1,57 +1,48 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
-from fastapi import Request
-from pathlib import Path
-from app.api.v1.auth import router as auth_router
-from app.api.v1.emails import router as email_router
-from app.api.v1.domains import router as domain_router
-from app.db.init_db import init_db
+
 from app.api.v1 import emails, domains, auth
 from app.db.session import SessionLocal
 from app.models.admin import Admin
-from app.services.auth import hash_password
+from app.services.auth import hash_password, require_admin
 
+# -------------------------------------------------
+# APP INIT
+# -------------------------------------------------
 app = FastAPI(
     title="Zanovex Email Provisioning API",
     version="0.2.0",
     docs_url="/docs",
     redoc_url=None
 )
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates") 
-
-@app.get("/")
-def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
-
-
-@app.get("/dashboard")
-def dashboard_page(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request})
 
 # -------------------------------------------------
-# CORS CONFIGURATION (DEV)
+# STATIC & TEMPLATES
+# -------------------------------------------------
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+templates = Jinja2Templates(directory="app/templates")
+
+# -------------------------------------------------
+# CORS (DEV / RENDER SAFE)
 # -------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # dev only
+    allow_origins=["*"],  # tighten later
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # -------------------------------------------------
-# STARTUP
+# STARTUP — AUTO CREATE ADMIN
 # -------------------------------------------------
 @app.on_event("startup")
 def create_default_admin():
     db = SessionLocal()
 
     admin = db.query(Admin).filter(Admin.username == "admin").first()
-
     if not admin:
         admin = Admin(
             username="admin",
@@ -63,36 +54,29 @@ def create_default_admin():
     db.close()
 
 # -------------------------------------------------
-# DASHBOARD FILE PATH
-# -------------------------------------------------
-BASE_DIR = Path(__file__).resolve().parent
-
-# -------------------------------------------------
-# DASHBOARD ROUTES  ✅ STEP 3 (THIS IS WHAT YOU ASKED)
+# HTML ROUTES (CLIENT / ADMIN UI)
 # -------------------------------------------------
 @app.get("/")
-def serve_client_dashboard():
-    return FileResponse(BASE_DIR / "dashboard" / "index.html")
+def login_page(request: Request):
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request}
+    )
 
 
-@app.get("/dashboard/emails")
-def serve_admin_emails():
-    return FileResponse(BASE_DIR / "dashboard" / "emails.html")
+@app.get("/dashboard")
+def dashboard_page(
+    request: Request,
+    _: dict = Depends(require_admin),
+):
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {"request": request}
+    )
 
-
-@app.get("/dashboard/domains")
-def serve_admin_domains():
-    return FileResponse(BASE_DIR / "dashboard" / "domains.html")
-
-@app.get("/")
-def root():
-    return {"status": "Zanovex API running"}
 # -------------------------------------------------
 # API ROUTERS
 # -------------------------------------------------
 app.include_router(emails.router, prefix="/api/v1", tags=["Emails"])
 app.include_router(domains.router, prefix="/api/v1", tags=["Domains"])
 app.include_router(auth.router, prefix="/api/v1", tags=["Auth"])
-
-for route in app.routes:
-    print(route.path)
