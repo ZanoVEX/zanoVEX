@@ -8,9 +8,6 @@ from app.api.v1.auth import require_admin
 from app.db.session import SessionLocal
 from app.models.admin import Admin
 from app.services.auth import hash_password
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # -------------------------------------------------
 # APP INIT
