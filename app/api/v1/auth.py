@@ -47,12 +47,16 @@ def login(
         "role": "admin"
     })
 
+    is_production = os.getenv("RENDER") == "true"
+
     response.set_cookie(
-        key="access_token",
-        value=token,
-        httponly=True,
-        samesite="lax",
-    )
+    key="access_token",
+    value=token,
+    httponly=True,
+    secure=is_production,
+    samesite="none" if is_production else "lax",
+    path="/",
+)
 
     return {"message": "Login successful"}
 

@@ -4,9 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 
 from app.api.v1 import emails, domains, auth
+from app.api.v1.auth import require_admin
 from app.db.session import SessionLocal
 from app.models.admin import Admin
-from app.services.auth import hash_password, require_admin
+from app.services.auth import hash_password
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # -------------------------------------------------
 # APP INIT
@@ -25,7 +29,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
 # -------------------------------------------------
-# CORS (DEV / RENDER SAFE)
+# CORS
 # -------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
@@ -54,7 +58,7 @@ def create_default_admin():
     db.close()
 
 # -------------------------------------------------
-# HTML ROUTES (CLIENT / ADMIN UI)
+# HTML ROUTES
 # -------------------------------------------------
 @app.get("/")
 def login_page(request: Request):
@@ -62,7 +66,6 @@ def login_page(request: Request):
         "login.html",
         {"request": request}
     )
-
 
 @app.get("/dashboard")
 def dashboard_page(
@@ -77,6 +80,6 @@ def dashboard_page(
 # -------------------------------------------------
 # API ROUTERS
 # -------------------------------------------------
-app.include_router(emails.router, prefix="/api/v1", tags=["Emails"])
-app.include_router(domains.router, prefix="/api/v1", tags=["Domains"])
-app.include_router(auth.router, prefix="/api/v1", tags=["Auth"])
+app.include_router(emails.router, prefix="/api/v1")
+app.include_router(domains.router, prefix="/api/v1")
+app.include_router(auth.router, prefix="/api/v1")
